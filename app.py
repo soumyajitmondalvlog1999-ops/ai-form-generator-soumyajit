@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 import jsonschema
 from jsonschema import validate
 import hashlib
+from datetime import datetime
 
 # Load environment variables
 load_dotenv()
@@ -192,9 +193,9 @@ def generate_simple_form(prompt: str) -> Dict:
         "fields": fields
     }
 
-def render_form(form_spec: Dict):
+def render_form_safely(form_spec: Dict):
     """
-    Render the form using Streamlit components
+    Safe form rendering that handles all edge cases
     Returns form data and submitted status
     """
     st.markdown(f"## {form_spec['title']}")
@@ -203,11 +204,11 @@ def render_form(form_spec: Dict):
     
     st.divider()
     
-    # Create a unique form key based on form specification
+    # Create a unique form key
     form_hash = hashlib.md5(json.dumps(form_spec, sort_keys=True).encode()).hexdigest()[:8]
     form_key = f"form_{form_hash}"
     
-    # Initialize form data in session state
+    # Initialize form data in session state if not exists
     if form_key not in st.session_state:
         st.session_state[form_key] = {}
     
@@ -229,123 +230,150 @@ def render_form(form_spec: Dict):
             # Create a unique key for each field
             field_key = f"{form_key}_{field_name}_{idx}"
             
-            # Get current value from session state
+            # Get current value from session state or use empty/default
             current_value = st.session_state[form_key].get(field_name, "")
             
-            # Render different field types
-            if field_type == "text":
+            try:
+                # Render different field types with proper error handling
+                if field_type == "text":
+                    value = st.text_input(
+                        display_label,
+                        value=current_value if current_value else "",
+                        placeholder=placeholder,
+                        key=field_key
+                    )
+                    form_data[field_name] = value
+                    
+                elif field_type == "email":
+                    value = st.text_input(
+                        display_label,
+                        value=current_value if current_value else "",
+                        placeholder=placeholder,
+                        key=field_key
+                    )
+                    form_data[field_name] = value
+                    
+                elif field_type == "number":
+                    try:
+                        default_val = int(current_value) if current_value else 0
+                    except:
+                        default_val = 0
+                    value = st.number_input(
+                        display_label,
+                        value=default_val,
+                        key=field_key
+                    )
+                    form_data[field_name] = str(value)
+                    
+                elif field_type == "tel":
+                    value = st.text_input(
+                        display_label,
+                        value=current_value if current_value else "",
+                        placeholder=placeholder,
+                        key=field_key
+                    )
+                    form_data[field_name] = value
+                    
+                elif field_type == "textarea":
+                    value = st.text_area(
+                        display_label,
+                        value=current_value if current_value else "",
+                        placeholder=placeholder,
+                        height=100,
+                        key=field_key
+                    )
+                    form_data[field_name] = value
+                    
+                elif field_type == "select":
+                    # Ensure options is not empty
+                    if not options:
+                        options = ["Select an option"]
+                    
+                    # Find index of current value or use 0
+                    if current_value and current_value in options:
+                        default_index = options.index(current_value)
+                    else:
+                        default_index = 0
+                    
+                    value = st.selectbox(
+                        display_label,
+                        options=options,
+                        index=default_index,
+                        key=field_key
+                    )
+                    form_data[field_name] = value
+                    
+                elif field_type == "multiselect":
+                    # Ensure options is not empty
+                    if not options:
+                        options = ["Option 1", "Option 2"]
+                    
+                    # Handle default values safely
+                    default_values = []
+                    if current_value:
+                        if isinstance(current_value, list):
+                            # Filter to only include values that are in options
+                            default_values = [v for v in current_value if v in options]
+                        elif current_value in options:
+                            default_values = [current_value]
+                    
+                    value = st.multiselect(
+                        display_label,
+                        options=options,
+                        default=default_values,
+                        key=field_key
+                    )
+                    form_data[field_name] = value
+                    
+                elif field_type == "date":
+                    # Parse date if it exists in session state
+                    date_value = None
+                    if current_value:
+                        try:
+                            date_value = datetime.strptime(current_value, "%Y-%m-%d").date()
+                        except:
+                            date_value = None
+                    
+                    value = st.date_input(
+                        display_label,
+                        value=date_value,
+                        key=field_key
+                    )
+                    form_data[field_name] = str(value) if value else ""
+                    
+                elif field_type == "checkbox":
+                    # Convert current value to boolean
+                    checkbox_value = False
+                    if current_value:
+                        if isinstance(current_value, str):
+                            checkbox_value = current_value.lower() in ['true', 'yes', '1', 'on']
+                        else:
+                            checkbox_value = bool(current_value)
+                    
+                    value = st.checkbox(
+                        display_label,
+                        value=checkbox_value,
+                        key=field_key
+                    )
+                    form_data[field_name] = value
+                    
+            except Exception as e:
+                # If any field fails, show a simple text input as fallback
+                st.error(f"Error rendering field '{field_label}'. Using fallback.")
                 value = st.text_input(
-                    display_label,
-                    value=current_value,
-                    placeholder=placeholder,
-                    key=field_key
-                )
-                form_data[field_name] = value
-                
-            elif field_type == "email":
-                value = st.text_input(
-                    display_label,
-                    value=current_value,
-                    placeholder=placeholder,
-                    key=field_key
-                )
-                form_data[field_name] = value
-                
-            elif field_type == "number":
-                try:
-                    default_val = int(current_value) if current_value else 0
-                except:
-                    default_val = 0
-                value = st.number_input(
-                    display_label,
-                    value=default_val,
-                    key=field_key
-                )
-                form_data[field_name] = value
-                
-            elif field_type == "tel":
-                value = st.text_input(
-                    display_label,
-                    value=current_value,
-                    placeholder=placeholder,
-                    key=field_key
-                )
-                form_data[field_name] = value
-                
-            elif field_type == "textarea":
-                value = st.text_area(
-                    display_label,
-                    value=current_value,
-                    placeholder=placeholder,
-                    height=100,
-                    key=field_key
-                )
-                form_data[field_name] = value
-                
-            elif field_type == "select":
-                # Ensure options is a list and not empty
-                if not options:
-                    options = ["Select an option"]
-                
-                # Ensure current_value is in options or use first option
-                if current_value in options:
-                    index = options.index(current_value)
-                else:
-                    index = 0
-                    current_value = options[0]
-                
-                value = st.selectbox(
-                    display_label,
-                    options=options,
-                    index=index,
-                    key=field_key
-                )
-                form_data[field_name] = value
-                
-            elif field_type == "multiselect":
-                if not options:
-                    options = ["Option 1", "Option 2"]
-                
-                # Ensure current_value is a list
-                if isinstance(current_value, list):
-                    default_vals = [v for v in current_value if v in options]
-                elif current_value in options:
-                    default_vals = [current_value]
-                else:
-                    default_vals = []
-                
-                value = st.multiselect(
-                    display_label,
-                    options=options,
-                    default=default_vals,
-                    key=field_key
-                )
-                form_data[field_name] = value
-                
-            elif field_type == "date":
-                value = st.date_input(
-                    display_label,
-                    value=None,
-                    key=field_key
-                )
-                form_data[field_name] = str(value) if value else ""
-                
-            elif field_type == "checkbox":
-                value = st.checkbox(
-                    display_label,
-                    value=bool(current_value),
-                    key=field_key
+                    f"{display_label} (Fallback)",
+                    value=str(current_value) if current_value else "",
+                    key=f"{field_key}_fallback"
                 )
                 form_data[field_name] = value
         
-        # Submit button - MUST be inside the form context
-        submitted = st.form_submit_button("✅ Submit Form", use_container_width=True, type="primary")
-        
-        # If form is submitted, update session state
-        if submitted:
-            st.session_state[form_key] = form_data
-            # Also set a flag to indicate submission
-            st.session_state[f"{form_key}_submitted"] = True
+        # Add submit button - this MUST be inside the form context
+        submitted = st.form_submit_button("✅ Submit Form", use_container_width=True)
+    
+    # Update session state with form data if form was submitted
+    if submitted:
+        st.session_state[form_key] = form_data
+        st.session_state[f"{form_key}_submitted"] = True
     
     return form_data, submitted
 
@@ -483,6 +511,13 @@ def main():
             margin-bottom: 2rem;
             font-size: 1.2rem;
         }
+        
+        /* Ensure form submit button is visible */
+        .stFormSubmitButton button {
+            margin-top: 1.5rem !important;
+            background: linear-gradient(90deg, #667eea, #764ba2) !important;
+            color: white !important;
+        }
         </style>
     """, unsafe_allow_html=True)
     
@@ -518,8 +553,8 @@ def main():
             "Generate an event registration form with name, email, and ticket type"
         ]
         
-        for example in examples:
-            if st.button(example, key=f"example_{hashlib.md5(example.encode()).hexdigest()[:8]}"):
+        for i, example in enumerate(examples):
+            if st.button(example, key=f"example_{i}_{hashlib.md5(example.encode()).hexdigest()[:6]}"):
                 st.session_state.user_prompt = example
                 st.rerun()
         
@@ -586,8 +621,8 @@ def main():
         with st.container():
             st.markdown('<div class="form-container">', unsafe_allow_html=True)
             
-            # Render the form
-            form_data, submitted = render_form(st.session_state.current_form)
+            # Render the form using the safe function
+            form_data, submitted = render_form_safely(st.session_state.current_form)
             
             if submitted:
                 st.session_state.form_submitted = True
