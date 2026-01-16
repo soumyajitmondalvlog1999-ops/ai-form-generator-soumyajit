@@ -198,7 +198,7 @@ def generate_simple_form(prompt: str) -> Dict:
 def render_form(form_spec: Dict) -> Dict:
     """
     Render the form using Streamlit components
-    Returns dictionary of form values
+    Returns dictionary of form values and submitted status
     """
     st.markdown(f"## {form_spec['title']}")
     if 'description' in form_spec:
@@ -206,12 +206,17 @@ def render_form(form_spec: Dict) -> Dict:
     
     st.divider()
     
-    form_data = {}
-    
     # Create a unique form key based on form specification
     form_hash = hashlib.md5(json.dumps(form_spec, sort_keys=True).encode()).hexdigest()[:8]
     
+    # Initialize form_data in session state if not exists
+    form_data_key = f"form_data_{form_hash}"
+    if form_data_key not in st.session_state:
+        st.session_state[form_data_key] = {}
+    
     with st.form(key=f"generated_form_{form_hash}"):
+        form_data = {}
+        
         for idx, field in enumerate(form_spec['fields']):
             field_name = field['name']
             field_label = field['label']
@@ -224,91 +229,118 @@ def render_form(form_spec: Dict) -> Dict:
             display_label = f"{field_label} {'*' if required else ''}"
             
             # Create a unique key for each field
-            field_key = f"{field_name}_{form_hash}_{idx}"
+            field_key = f"field_{field_name}_{form_hash}_{idx}"
             
-            # Store initial value in session state if not exists
-            if field_key not in st.session_state:
-                st.session_state[field_key] = ""
+            # Get default value from session state or use empty
+            default_value = st.session_state.get(field_key, "")
             
             # Render different field types
             if field_type == "text":
-                form_data[field_name] = st.text_input(
+                value = st.text_input(
                     display_label,
                     placeholder=placeholder,
-                    value=st.session_state[field_key],
+                    value=default_value,
                     key=field_key
                 )
+                form_data[field_name] = value
+                
             elif field_type == "email":
-                form_data[field_name] = st.text_input(
+                value = st.text_input(
                     display_label,
                     placeholder=placeholder,
-                    value=st.session_state[field_key],
+                    value=default_value,
                     key=field_key
                 )
+                form_data[field_name] = value
+                
             elif field_type == "number":
-                form_data[field_name] = st.number_input(
+                # Convert default value to int if possible
+                try:
+                    default_num = int(default_value) if default_value else 0
+                except:
+                    default_num = 0
+                value = st.number_input(
                     display_label,
-                    value=int(st.session_state[field_key]) if st.session_state[field_key] and st.session_state[field_key].isdigit() else 0,
+                    value=default_num,
                     step=1,
                     key=field_key
                 )
+                form_data[field_name] = value
+                
             elif field_type == "tel":
-                form_data[field_name] = st.text_input(
+                value = st.text_input(
                     display_label,
                     placeholder=placeholder,
-                    value=st.session_state[field_key],
+                    value=default_value,
                     key=field_key
                 )
+                form_data[field_name] = value
+                
             elif field_type == "textarea":
-                form_data[field_name] = st.text_area(
+                value = st.text_area(
                     display_label,
                     placeholder=placeholder,
-                    value=st.session_state[field_key],
+                    value=default_value,
                     height=100,
                     key=field_key
                 )
+                form_data[field_name] = value
+                
             elif field_type == "select":
-                default_index = 0
-                if st.session_state[field_key] in options:
-                    default_index = options.index(st.session_state[field_key])
-                form_data[field_name] = st.selectbox(
+                # Handle default value for select
+                if default_value and default_value in options:
+                    default_index = options.index(default_value)
+                else:
+                    default_index = 0
+                value = st.selectbox(
                     display_label,
                     options=options,
                     index=default_index,
                     key=field_key
                 )
+                form_data[field_name] = value
+                
             elif field_type == "multiselect":
-                form_data[field_name] = st.multiselect(
+                # Handle default value for multiselect
+                if isinstance(default_value, list):
+                    default_list = [v for v in default_value if v in options]
+                else:
+                    default_list = []
+                value = st.multiselect(
                     display_label,
                     options=options,
-                    default=st.session_state[field_key] if isinstance(st.session_state[field_key], list) else [],
+                    default=default_list,
                     key=field_key
                 )
+                form_data[field_name] = value
+                
             elif field_type == "date":
-                form_data[field_name] = st.date_input(
+                value = st.date_input(
                     display_label,
                     value=None,
                     key=field_key
                 )
+                form_data[field_name] = value
+                
             elif field_type == "checkbox":
-                form_data[field_name] = st.checkbox(
+                value = st.checkbox(
                     display_label,
-                    value=bool(st.session_state[field_key]),
+                    value=bool(default_value),
                     key=field_key
                 )
-            
-            # Update session state
-            st.session_state[field_key] = form_data[field_name]
+                form_data[field_name] = value
         
-        # Submit button with unique key
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col2:
-            submitted = st.form_submit_button(
-                "Submit Form", 
-                type="primary", 
-                use_container_width=True,
-                key=f"submit_{form_hash}"
-            )
+        # Use st.form_submit_button() correctly
+        submitted = st.form_submit_button("Submit Form", use_container_width=True)
+        
+        # Update session state with form data
+        if submitted:
+            st.session_state[form_data_key] = form_data
+            # Also update individual field session states
+            for idx, field in enumerate(form_spec['fields']):
+                field_name = field['name']
+                field_key = f"field_{field_name}_{form_hash}_{idx}"
+                st.session_state[field_key] = form_data.get(field_name, "")
     
     return form_data, submitted
 
@@ -378,10 +410,13 @@ def main():
             margin-bottom: 2rem;
         }
         .stButton button {
-            width: 100%;
             background-color: #3B82F6;
             color: white;
             font-weight: bold;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
         }
         .stTextInput input {
             border-radius: 8px;
@@ -391,6 +426,7 @@ def main():
             padding: 2rem;
             border-radius: 12px;
             border: 1px solid #E5E7EB;
+            margin-bottom: 2rem;
         }
         .example-btn {
             width: 100%;
@@ -437,23 +473,17 @@ def main():
             "Generate an event registration form with name, email, and ticket type"
         ]
         
-        for i, example in enumerate(examples):
-            # Create a unique key for each example button
-            example_key = f"example_{i}_{hashlib.md5(example.encode()).hexdigest()[:8]}"
-            
-            # Use markdown with clickable div instead of button to avoid widget key conflicts
-            st.markdown(f"""
-                <div class="example-btn" onclick="
-                    const textArea = parent.document.querySelector('textarea[aria-label=\"Describe the form you need:\"]');
-                    if (textArea) {{
-                        textArea.value = `{example.replace('`', '\\`')}`;
-                        const event = new Event('input', {{ bubbles: true }});
-                        textArea.dispatchEvent(event);
-                    }}
-                ">
-                    {example}
-                </div>
-            """, unsafe_allow_html=True)
+        # Use a selectbox for examples to avoid duplicate widget keys
+        selected_example = st.selectbox(
+            "Select an example prompt:",
+            ["Click to choose..."] + examples,
+            key="example_select"
+        )
+        
+        if selected_example and selected_example != "Click to choose...":
+            if st.button("Use This Example", key="use_example_button"):
+                st.session_state.user_prompt = selected_example
+                st.rerun()
         
         st.divider()
         
@@ -475,7 +505,7 @@ def main():
     col1, col2, col3 = st.columns([1, 2, 1])
     
     with col2:
-        # Prompt input with unique key
+        # Prompt input
         user_prompt = st.text_area(
             "Describe the form you need:",
             placeholder="E.g., 'I need a registration form for a doctors' conference with Name, Medical License Number, and Dietary Restrictions'",
@@ -487,19 +517,14 @@ def main():
         # Update session state
         st.session_state.user_prompt = user_prompt
         
-        # Generate button with unique key
-        generate_key = f"generate_btn_{hashlib.md5(user_prompt.encode()).hexdigest()[:8]}" if user_prompt else "generate_btn_empty"
-        
-        if st.button("Generate Form", type="primary", use_container_width=True, key=generate_key):
+        # Generate button
+        if st.button("Generate Form", type="primary", use_container_width=True, key="generate_main_button"):
             if user_prompt.strip():
                 with st.spinner("Generating your form..."):
                     form_spec = extract_form_requirements(user_prompt)
                     st.session_state.current_form = form_spec
                     st.session_state.form_submitted = False
-                    # Clear previous form data from session state
-                    keys_to_remove = [key for key in st.session_state.keys() if key.startswith('field_') or key.startswith('submit_')]
-                    for key in keys_to_remove:
-                        del st.session_state[key]
+                    st.session_state.form_data = None
                     st.rerun()
             else:
                 st.warning("Please enter a description of the form you need.")
@@ -527,21 +552,20 @@ def main():
         st.divider()
         display_form_data(st.session_state.form_data, st.session_state.current_form)
         
-        # Reset button with unique key
-        reset_key = f"reset_btn_{hashlib.md5(json.dumps(st.session_state.form_data, sort_keys=True).encode()).hexdigest()[:8]}"
-        
-        if st.button("Create Another Form", type="secondary", key=reset_key):
+        # Reset button
+        if st.button("Create Another Form", type="secondary", key="reset_button"):
             # Clear all form-related session state
             st.session_state.current_form = None
             st.session_state.form_submitted = False
             st.session_state.form_data = None
             st.session_state.user_prompt = ""
             
-            # Clear field data from session state
-            keys_to_remove = [key for key in st.session_state.keys() 
-                             if key.startswith('field_') or 
-                                key.startswith('submit_') or 
-                                key.startswith('generated_form_')]
+            # Clear any dynamically created session state keys
+            keys_to_remove = []
+            for key in st.session_state.keys():
+                if key.startswith('field_') or key.startswith('form_data_') or key.startswith('generated_form_'):
+                    keys_to_remove.append(key)
+            
             for key in keys_to_remove:
                 del st.session_state[key]
             
@@ -558,17 +582,6 @@ def main():
         """,
         unsafe_allow_html=True
     )
-    
-    # Add JavaScript for example button clicks
-    st.markdown("""
-        <script>
-        // This script helps with the example button functionality
-        function setTextareaValue(textarea, value) {
-            textarea.value = value;
-            textarea.dispatchEvent(new Event('input', { bubbles: true }));
-        }
-        </script>
-    """, unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
