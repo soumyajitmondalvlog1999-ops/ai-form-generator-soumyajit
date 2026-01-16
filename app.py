@@ -422,9 +422,9 @@ def main():
             background-attachment: fixed;
         }
         
-        /* Content container with glass effect */
+        /* Content container with glass effect - WHITE BACKGROUND FOR READABILITY */
         .main-container {
-            background: rgba(255, 255, 255, 0.95);
+            background: rgba(255, 255, 255, 0.98);
             backdrop-filter: blur(10px);
             border-radius: 20px;
             padding: 2rem;
@@ -432,6 +432,11 @@ def main():
             max-width: 1200px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
             border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        /* Ensure all text in main container is dark for readability */
+        .main-container, .main-container p, .main-container div, .main-container span {
+            color: #1f2937 !important;
         }
         
         /* Headers */
@@ -443,11 +448,12 @@ def main():
             text-align: center;
             margin-bottom: 1rem;
             font-weight: 800;
+            color: #1f2937;
         }
         
         .sub-header {
             font-size: 1.3rem;
-            color: #4B5563;
+            color: #4B5563 !important;
             text-align: center;
             margin-bottom: 2rem;
             font-weight: 300;
@@ -455,17 +461,41 @@ def main():
         
         /* Form styling */
         .form-container {
-            background: rgba(255, 255, 255, 0.8);
+            background: rgba(255, 255, 255, 0.95);
             padding: 2rem;
             border-radius: 15px;
             border: 1px solid rgba(102, 126, 234, 0.2);
             margin-bottom: 2rem;
+            color: #1f2937 !important;
+        }
+        
+        /* Sidebar styling - ensure text is readable */
+        [data-testid="stSidebar"] {
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(10px);
+            color: #1f2937 !important;
+        }
+        
+        [data-testid="stSidebar"] * {
+            color: #1f2937 !important;
+        }
+        
+        [data-testid="stSidebar"] p, 
+        [data-testid="stSidebar"] div, 
+        [data-testid="stSidebar"] span,
+        [data-testid="stSidebar"] h1,
+        [data-testid="stSidebar"] h2,
+        [data-testid="stSidebar"] h3,
+        [data-testid="stSidebar"] h4,
+        [data-testid="stSidebar"] h5,
+        [data-testid="stSidebar"] h6 {
+            color: #1f2937 !important;
         }
         
         /* Button styling */
         .stButton button {
             background: linear-gradient(90deg, #667eea, #764ba2);
-            color: white;
+            color: white !important;
             font-weight: 600;
             border: none;
             padding: 0.75rem 2rem;
@@ -486,6 +516,8 @@ def main():
             border: 2px solid #E5E7EB;
             padding: 0.75rem;
             transition: all 0.3s ease;
+            color: #1f2937 !important;
+            background-color: white !important;
         }
         
         .stTextInput input:focus, .stTextArea textarea:focus, .stSelectbox select:focus {
@@ -493,13 +525,12 @@ def main():
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
         
-        /* Sidebar styling */
-        [data-testid="stSidebar"] {
-            background: rgba(255, 255, 255, 0.9);
-            backdrop-filter: blur(10px);
+        /* Text area styling */
+        textarea {
+            color: #1f2937 !important;
         }
         
-        /* Example cards */
+        /* Example cards - ensure text is readable */
         .example-card {
             background: white;
             border-radius: 10px;
@@ -508,6 +539,7 @@ def main():
             border: 1px solid #E5E7EB;
             cursor: pointer;
             transition: all 0.3s ease;
+            color: #1f2937 !important;
         }
         
         .example-card:hover {
@@ -535,162 +567,64 @@ def main():
         .stDivider {
             border-color: rgba(102, 126, 234, 0.2);
         }
+        
+        /* Ensure Streamlit text elements are readable */
+        .stMarkdown, .stText, .stHeader, .stSubheader {
+            color: #1f2937 !important;
+        }
+        
+        /* Specific fix for sidebar text */
+        section[data-testid="stSidebar"] div {
+            color: #1f2937 !important;
+        }
+        
+        /* Fix for all text elements in the app */
+        .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6,
+        .stApp p, .stApp span, .stApp div, .stApp li {
+            color: #1f2937 !important;
+        }
+        
+        /* Override for the main content area */
+        .main-container h1, .main-container h2, .main-container h3, 
+        .main-container h4, .main-container h5, .main-container h6,
+        .main-container p, .main-container span, .main-container div {
+            color: #1f2937 !important;
+        }
+        
+        /* Label styling */
+        label {
+            color: #1f2937 !important;
+            font-weight: 600;
+        }
+        
+        /* Select box text color */
+        .stSelectbox div[data-baseweb="select"] {
+            color: #1f2937 !important;
+        }
+        
+        /* Text input placeholder color */
+        ::placeholder {
+            color: #6B7280 !important;
+            opacity: 0.7;
+        }
+        
+        /* Ensure all Streamlit widget labels are visible */
+        .stTextInput label, .stTextArea label, .stSelectbox label,
+        .stNumberInput label, .stDateInput label, .stCheckbox label {
+            color: #1f2937 !important;
+            font-weight: 600;
+        }
+        
+        /* Fix for the text area in the main prompt */
+        textarea[aria-label="Describe the form you need:"] {
+            color: #1f2937 !important;
+            background-color: white !important;
+        }
+        
+        /* Ensure all buttons have proper text color */
+        button {
+            color: white !important;
+        }
         </style>
     """, unsafe_allow_html=True)
-    
-    # Main container with glass effect
-    st.markdown('<div class="main-container">', unsafe_allow_html=True)
-    
-    # Header
-    st.markdown('<h1 class="main-header">✨ AI Form Generator</h1>', unsafe_allow_html=True)
-    st.markdown('<p class="sub-header">Describe the form you need in plain English, and watch it appear instantly!</p>', unsafe_allow_html=True)
-    
-    # Initialize session state
-    if 'current_form' not in st.session_state:
-        st.session_state.current_form = None
-    if 'form_submitted' not in st.session_state:
-        st.session_state.form_submitted = False
-    if 'form_data' not in st.session_state:
-        st.session_state.form_data = None
-    if 'user_prompt' not in st.session_state:
-        st.session_state.user_prompt = ""
-    if 'use_ai' not in st.session_state:
-        st.session_state.use_ai = True
-    
-    # Sidebar for examples and info
-    with st.sidebar:
-        st.markdown("## 📝 Examples")
-        st.markdown("Try these prompts:")
-        
-        examples = [
-            "I need a registration form for a doctors' conference with Name, Medical License Number, and Dietary Restrictions",
-            "I need a registration form for a Fintech conference with Name, Mobile number, and their business pain points",
-            "Create a contact form with name, email, and message",
-            "Make a job application form with resume upload option",
-            "Generate an event registration form with name, email, and ticket type"
-        ]
-        
-        # Display example cards
-        for example in examples:
-            if st.button(example, key=f"example_{hashlib.md5(example.encode()).hexdigest()[:8]}"):
-                st.session_state.user_prompt = example
-                st.rerun()
-        
-        st.divider()
-        
-        st.markdown("## 🔧 Features")
-        
-        features = [
-            ("🤖", "AI-Powered", "Generate forms using natural language"),
-            ("🎨", "Smart Fields", "Auto-detects field types and labels"),
-            ("📊", "Multiple Types", "Text, email, dropdowns, checkboxes, etc."),
-            ("📥", "JSON Export", "Download submissions as structured data"),
-            ("⚡", "Instant Preview", "See your form appear in real-time")
-        ]
-        
-        for icon, title, desc in features:
-            st.markdown(f"**{icon} {title}**")
-            st.markdown(f"<small>{desc}</small>", unsafe_allow_html=True)
-            st.markdown("---")
-        
-        st.divider()
-        
-        st.markdown("## ⚙️ Settings")
-        use_ai = st.toggle("Use AI (OpenAI)", value=st.session_state.use_ai, 
-                          help="Requires OPENAI_API_KEY in .env file")
-        st.session_state.use_ai = use_ai
-        
-        if use_ai:
-            client = get_openai_client()
-            if not client:
-                st.warning("⚠️ OpenAI API key not found. Using rule-based generation.")
-    
-    # Main content area
-    col1, col2, col3 = st.columns([1, 2, 1])
-    
-    with col2:
-        # Prompt input
-        user_prompt = st.text_area(
-            "**Describe the form you need:**",
-            placeholder="E.g., 'I need a registration form for a doctors' conference with Name, Medical License Number, and Dietary Restrictions'",
-            height=120,
-            key="user_prompt_input",
-            value=st.session_state.user_prompt
-        )
-        
-        # Update session state
-        st.session_state.user_prompt = user_prompt
-        
-        # Generate button
-        if st.button("🚀 Generate Form", type="primary", use_container_width=True):
-            if user_prompt.strip():
-                with st.spinner("✨ Generating your form..."):
-                    form_spec = extract_form_requirements(user_prompt)
-                    st.session_state.current_form = form_spec
-                    st.session_state.form_submitted = False
-                    st.session_state.form_data = None
-                    st.rerun()
-            else:
-                st.warning("Please enter a description of the form you need.")
-    
-    # Display generated form
-    if st.session_state.current_form:
-        st.divider()
-        
-        # Form container
-        with st.container():
-            st.markdown('<div class="form-container">', unsafe_allow_html=True)
-            
-            # Render the form
-            form_data, submitted = render_form(st.session_state.current_form)
-            
-            if submitted:
-                st.session_state.form_submitted = True
-                st.session_state.form_data = form_data
-                st.rerun()
-            
-            st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Display submitted data
-    if st.session_state.form_submitted and st.session_state.form_data:
-        st.divider()
-        display_form_data(st.session_state.form_data, st.session_state.current_form)
-        
-        # Reset button
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col2:
-            if st.button("🔄 Create Another Form", type="secondary", use_container_width=True):
-                # Clear all form-related session state
-                st.session_state.current_form = None
-                st.session_state.form_submitted = False
-                st.session_state.form_data = None
-                st.session_state.user_prompt = ""
-                
-                # Clear any dynamically created session state keys
-                keys_to_remove = []
-                for key in st.session_state.keys():
-                    if key.startswith('field_') or key.startswith('form_data_') or key.startswith('generated_form_'):
-                        keys_to_remove.append(key)
-                
-                for key in keys_to_remove:
-                    del st.session_state[key]
-                
-                st.rerun()
-    
-    # Footer
-    st.divider()
-    st.markdown(
-        """
-        <div style="text-align: center; color: #6B7280; padding: 1rem;">
-            <p>✨ <b>AI Form Generator</b> | Built with Streamlit & AI Magic</p>
-            <p><small>Simply describe, generate, and collect! No code required.</small></p>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-    
-    # Close main container
-    st.markdown('</div>', unsafe_allow_html=True)
 
-if __name__ == "__main__":
-    main()
