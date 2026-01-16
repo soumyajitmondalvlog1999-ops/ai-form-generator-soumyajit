@@ -23,7 +23,6 @@ st.set_page_config(
 def get_openai_client():
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
-        # Don't show error immediately, just return None
         return None
     return OpenAI(api_key=api_key)
 
@@ -125,15 +124,12 @@ def extract_form_requirements(prompt: str) -> Dict:
             
             # Extract JSON from response
             content = response.choices[0].message.content
-            # Try to find JSON in the response
             json_match = re.search(r'\{.*\}', content, re.DOTALL)
             if json_match:
                 form_spec = json.loads(json_match.group())
-                # Validate against schema
                 validate(instance=form_spec, schema=FORM_FIELD_SCHEMA)
                 return form_spec
         except Exception as e:
-            # Silent fail - use fallback
             pass
     
     # Fallback: Generate simple form based on keywords
@@ -196,10 +192,10 @@ def generate_simple_form(prompt: str) -> Dict:
         "fields": fields
     }
 
-def render_form(form_spec: Dict) -> Dict:
+def render_form(form_spec: Dict):
     """
     Render the form using Streamlit components
-    Returns dictionary of form values and submitted status
+    Returns form data and submitted status
     """
     st.markdown(f"## {form_spec['title']}")
     if 'description' in form_spec:
@@ -209,8 +205,14 @@ def render_form(form_spec: Dict) -> Dict:
     
     # Create a unique form key based on form specification
     form_hash = hashlib.md5(json.dumps(form_spec, sort_keys=True).encode()).hexdigest()[:8]
+    form_key = f"form_{form_hash}"
     
-    with st.form(key=f"generated_form_{form_hash}"):
+    # Initialize form data in session state
+    if form_key not in st.session_state:
+        st.session_state[form_key] = {}
+    
+    # Create form
+    with st.form(key=form_key):
         form_data = {}
         
         for idx, field in enumerate(form_spec['fields']):
@@ -225,21 +227,17 @@ def render_form(form_spec: Dict) -> Dict:
             display_label = f"{field_label} {'*' if required else ''}"
             
             # Create a unique key for each field
-            field_key = f"field_{field_name}_{form_hash}_{idx}"
+            field_key = f"{form_key}_{field_name}_{idx}"
             
-            # Initialize field in session state if not exists
-            if field_key not in st.session_state:
-                st.session_state[field_key] = ""
-            
-            # Get value from session state
-            current_value = st.session_state[field_key]
+            # Get current value from session state
+            current_value = st.session_state[form_key].get(field_name, "")
             
             # Render different field types
             if field_type == "text":
                 value = st.text_input(
                     display_label,
-                    placeholder=placeholder,
                     value=current_value,
+                    placeholder=placeholder,
                     key=field_key
                 )
                 form_data[field_name] = value
@@ -247,31 +245,29 @@ def render_form(form_spec: Dict) -> Dict:
             elif field_type == "email":
                 value = st.text_input(
                     display_label,
-                    placeholder=placeholder,
                     value=current_value,
+                    placeholder=placeholder,
                     key=field_key
                 )
                 form_data[field_name] = value
                 
             elif field_type == "number":
-                # Convert current value to int if possible
                 try:
-                    current_num = int(current_value) if current_value else 0
+                    default_val = int(current_value) if current_value else 0
                 except:
-                    current_num = 0
+                    default_val = 0
                 value = st.number_input(
                     display_label,
-                    value=current_num,
-                    step=1,
+                    value=default_val,
                     key=field_key
                 )
-                form_data[field_name] = str(value)
+                form_data[field_name] = value
                 
             elif field_type == "tel":
                 value = st.text_input(
                     display_label,
-                    placeholder=placeholder,
                     value=current_value,
+                    placeholder=placeholder,
                     key=field_key
                 )
                 form_data[field_name] = value
@@ -279,57 +275,57 @@ def render_form(form_spec: Dict) -> Dict:
             elif field_type == "textarea":
                 value = st.text_area(
                     display_label,
-                    placeholder=placeholder,
                     value=current_value,
+                    placeholder=placeholder,
                     height=100,
                     key=field_key
                 )
                 form_data[field_name] = value
                 
             elif field_type == "select":
-                # Handle current value for select
-                if current_value and current_value in options:
-                    current_index = options.index(current_value)
+                # Ensure options is a list and not empty
+                if not options:
+                    options = ["Select an option"]
+                
+                # Ensure current_value is in options or use first option
+                if current_value in options:
+                    index = options.index(current_value)
                 else:
-                    current_index = 0
+                    index = 0
+                    current_value = options[0]
+                
                 value = st.selectbox(
                     display_label,
                     options=options,
-                    index=current_index,
+                    index=index,
                     key=field_key
                 )
                 form_data[field_name] = value
                 
             elif field_type == "multiselect":
-                # Handle current value for multiselect
+                if not options:
+                    options = ["Option 1", "Option 2"]
+                
+                # Ensure current_value is a list
                 if isinstance(current_value, list):
-                    current_list = [v for v in current_value if v in options]
-                elif current_value:
-                    current_list = [current_value] if current_value in options else []
+                    default_vals = [v for v in current_value if v in options]
+                elif current_value in options:
+                    default_vals = [current_value]
                 else:
-                    current_list = []
+                    default_vals = []
+                
                 value = st.multiselect(
                     display_label,
                     options=options,
-                    default=current_list,
+                    default=default_vals,
                     key=field_key
                 )
                 form_data[field_name] = value
                 
             elif field_type == "date":
-                try:
-                    # Try to parse date from string
-                    from datetime import datetime
-                    if current_value:
-                        current_date = datetime.strptime(current_value, "%Y-%m-%d").date()
-                    else:
-                        current_date = None
-                except:
-                    current_date = None
-                
                 value = st.date_input(
                     display_label,
-                    value=current_date,
+                    value=None,
                     key=field_key
                 )
                 form_data[field_name] = str(value) if value else ""
@@ -342,24 +338,14 @@ def render_form(form_spec: Dict) -> Dict:
                 )
                 form_data[field_name] = value
         
-        # Submit button
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col2:
-            submitted = st.form_submit_button("✅ Submit Form", use_container_width=True, type="primary")
+        # Submit button - MUST be inside the form context
+        submitted = st.form_submit_button("✅ Submit Form", use_container_width=True, type="primary")
         
-        # Update session state after form submission
+        # If form is submitted, update session state
         if submitted:
-            # Store form data in session state
-            form_data_key = f"form_data_{form_hash}"
-            st.session_state[form_data_key] = form_data
-            
-            # Also update individual field session states
-            for idx, field in enumerate(form_spec['fields']):
-                field_name = field['name']
-                field_key = f"field_{field_name}_{form_hash}_{idx}"
-                if field_name in form_data:
-                    # Use a callback to update session state after rerun
-                    st.session_state[field_key] = form_data[field_name]
+            st.session_state[form_key] = form_data
+            # Also set a flag to indicate submission
+            st.session_state[f"{form_key}_submitted"] = True
     
     return form_data, submitted
 
@@ -370,13 +356,11 @@ def display_form_data(form_data: Dict, form_spec: Dict):
     
     st.markdown("### 📋 Submitted Data")
     
-    # Create two columns for better layout
     col1, col2 = st.columns(2)
     
     with col1:
         st.markdown("#### Form Values")
         for field_name, value in form_data.items():
-            # Find field label
             field_label = next((f['label'] for f in form_spec['fields'] if f['name'] == field_name), field_name)
             display_value = value if value not in [None, '', []] else 'Not provided'
             if isinstance(display_value, list):
@@ -385,7 +369,6 @@ def display_form_data(form_data: Dict, form_spec: Dict):
     
     with col2:
         st.markdown("#### JSON Output")
-        # Create a clean JSON structure
         output_json = {
             "form_title": form_spec['title'],
             "submitted_data": form_data,
@@ -422,19 +405,27 @@ def main():
             background-attachment: fixed;
         }
         
-        /* Content container with glass effect */
+        /* Content container with SOLID WHITE background */
         .main-container {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
+            background: white;
             border-radius: 20px;
             padding: 2rem;
             margin: 2rem auto;
             max-width: 1200px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(255, 255, 255, 0.2);
         }
         
-        /* Headers */
+        /* Sidebar with SOLID WHITE background */
+        [data-testid="stSidebar"] {
+            background: white !important;
+        }
+        
+        /* Ensure all text in the app is dark */
+        .stApp, .stApp * {
+            color: #1f2937 !important;
+        }
+        
+        /* Override for specific elements that should have gradient text */
         .main-header {
             font-size: 3rem;
             background: linear-gradient(90deg, #667eea, #764ba2);
@@ -445,27 +436,10 @@ def main():
             font-weight: 800;
         }
         
-        .sub-header {
-            font-size: 1.3rem;
-            color: #4B5563;
-            text-align: center;
-            margin-bottom: 2rem;
-            font-weight: 300;
-        }
-        
-        /* Form styling */
-        .form-container {
-            background: rgba(255, 255, 255, 0.8);
-            padding: 2rem;
-            border-radius: 15px;
-            border: 1px solid rgba(102, 126, 234, 0.2);
-            margin-bottom: 2rem;
-        }
-        
         /* Button styling */
         .stButton button {
             background: linear-gradient(90deg, #667eea, #764ba2);
-            color: white;
+            color: white !important;
             font-weight: 600;
             border: none;
             padding: 0.75rem 2rem;
@@ -478,6 +452,15 @@ def main():
         .stButton button:hover {
             transform: translateY(-2px);
             box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        /* Form container */
+        .form-container {
+            background: #f9fafb;
+            padding: 2rem;
+            border-radius: 15px;
+            border: 1px solid #e5e7eb;
+            margin-bottom: 2rem;
         }
         
         /* Input field styling */
@@ -493,52 +476,17 @@ def main():
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
         
-        /* Sidebar styling */
-        [data-testid="stSidebar"] {
-            background: rgba(255, 255, 255, 0.9);
-            backdrop-filter: blur(10px);
-        }
-        
-        /* Example cards */
-        .example-card {
-            background: white;
-            border-radius: 10px;
-            padding: 1rem;
-            margin-bottom: 1rem;
-            border: 1px solid #E5E7EB;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        
-        .example-card:hover {
-            transform: translateX(5px);
-            border-color: #667eea;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-        }
-        
-        /* Feature icons */
-        .feature-icon {
-            font-size: 2rem;
-            margin-right: 1rem;
-            background: linear-gradient(90deg, #667eea, #764ba2);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        
-        /* Success message */
-        .stAlert {
-            border-radius: 10px;
-            border: none;
-        }
-        
-        /* Divider styling */
-        .stDivider {
-            border-color: rgba(102, 126, 234, 0.2);
+        /* Subheader styling */
+        .sub-header {
+            color: #6b7280 !important;
+            text-align: center;
+            margin-bottom: 2rem;
+            font-size: 1.2rem;
         }
         </style>
     """, unsafe_allow_html=True)
     
-    # Main container with glass effect
+    # Main container
     st.markdown('<div class="main-container">', unsafe_allow_html=True)
     
     # Header
@@ -557,7 +505,7 @@ def main():
     if 'use_ai' not in st.session_state:
         st.session_state.use_ai = True
     
-    # Sidebar for examples and info
+    # Sidebar
     with st.sidebar:
         st.markdown("## 📝 Examples")
         st.markdown("Try these prompts:")
@@ -570,7 +518,6 @@ def main():
             "Generate an event registration form with name, email, and ticket type"
         ]
         
-        # Display example cards
         for example in examples:
             if st.button(example, key=f"example_{hashlib.md5(example.encode()).hexdigest()[:8]}"):
                 st.session_state.user_prompt = example
@@ -591,7 +538,6 @@ def main():
         for icon, title, desc in features:
             st.markdown(f"**{icon} {title}**")
             st.markdown(f"<small>{desc}</small>", unsafe_allow_html=True)
-            st.markdown("---")
         
         st.divider()
         
@@ -618,11 +564,10 @@ def main():
             value=st.session_state.user_prompt
         )
         
-        # Update session state
         st.session_state.user_prompt = user_prompt
         
         # Generate button
-        if st.button("🚀 Generate Form", type="primary", use_container_width=True):
+        if st.button("🚀 Generate Form", type="primary", use_container_width=True, key="generate_button"):
             if user_prompt.strip():
                 with st.spinner("✨ Generating your form..."):
                     form_spec = extract_form_requirements(user_prompt)
@@ -659,17 +604,11 @@ def main():
         # Reset button
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
-            if st.button("🔄 Create Another Form", type="secondary", use_container_width=True):
+            if st.button("🔄 Create Another Form", type="secondary", use_container_width=True, key="reset_button"):
                 # Clear all form-related session state
-                st.session_state.current_form = None
-                st.session_state.form_submitted = False
-                st.session_state.form_data = None
-                st.session_state.user_prompt = ""
-                
-                # Clear any dynamically created session state keys
                 keys_to_remove = []
-                for key in st.session_state.keys():
-                    if key.startswith('field_') or key.startswith('form_data_') or key.startswith('generated_form_'):
+                for key in list(st.session_state.keys()):
+                    if key.startswith('form_') or key in ['current_form', 'form_submitted', 'form_data', 'user_prompt']:
                         keys_to_remove.append(key)
                 
                 for key in keys_to_remove:
@@ -694,4 +633,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
