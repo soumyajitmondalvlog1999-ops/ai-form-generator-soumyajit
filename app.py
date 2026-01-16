@@ -22,7 +22,7 @@ st.set_page_config(
 
 # Initialize OpenAI client
 def get_openai_client():
-    api_key = os.getenv("OPENAI_API_KEY")
+    api_key = os.getenv("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")
     if not api_key:
         return None
     return OpenAI(api_key=api_key)
@@ -668,4 +668,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
